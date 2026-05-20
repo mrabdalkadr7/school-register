@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="سجل المدرسة">
+<meta name="theme-color" content="#0d9488">
+<link rel="manifest" href="manifest.json">
+<title>سجل المدرسة</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --teal:#0d9488; --teal-l:#ccfbf1; --teal-d:#0f766e;
+  --bg:#f0fdfa; --card:#fff; --text:#134e4a;
+  --muted:#5eead4; --border:#99f6e4;
+  --red:#ef4444; --amber:#f59e0b; --green:#10b981; --blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:90px}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,var(--teal-d),var(--teal));color:#fff;padding:14px 14px 10px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(13,148,136,.3)}
+.header-row{display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:1.05rem;font-weight:800}
+.header p{font-size:.75rem;opacity:.85;margin-top:2px}
+.btn-settings{background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* CLASS SELECTOR */
+.class-bar{background:#fff;border-bottom:2px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:8px;overflow-x:auto;position:sticky;top:62px;z-index:99}
+.class-bar::-webkit-scrollbar{display:none}
+.class-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:700;border:2px solid var(--border);background:#fff;cursor:pointer;white-space:nowrap;transition:.15s}
+.class-chip.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.class-chip-add{flex-shrink:0;padding:6px 12px;border-radius:20px;font-size:.8rem;font-weight:700;border:2px dashed var(--muted);background:#fff;color:var(--teal-d);cursor:pointer}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border)}
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:.78rem;font-weight:600;color:#6b7280;cursor:pointer;border-bottom:3px solid transparent;transition:.15s}
+.tab.active{color:var(--teal-d);border-bottom-color:var(--teal)}
+
+/* PAGES */
+.page{display:none;padding:12px}
+.page.active{display:block}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:10px}
+.search-wrap input{width:100%;padding:10px 40px 10px 14px;border:2px solid var(--border);border-radius:12px;font-family:'Tajawal',sans-serif;font-size:.9rem;background:#fff;color:var(--text);outline:none;transition:.2s}
+.search-wrap input:focus{border-color:var(--teal)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+
+/* FILTER ROW */
+.filter-row{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-btn{flex-shrink:0;padding:5px 12px;border-radius:16px;font-size:.75rem;font-weight:600;border:2px solid var(--border);background:#fff;cursor:pointer;transition:.15s}
+.filter-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+
+/* COUNT */
+.count-badge{background:var(--teal-l);color:var(--teal-d);font-size:.78rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px;display:inline-block}
+
+/* STUDENT CARDS */
+.student-card{background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:8px;border:1.5px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;transition:.15s;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.student-card:active{transform:scale(.98);background:var(--teal-l)}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0;color:#fff}
+.av-boy{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}
+.av-girl{background:linear-gradient(135deg,#ec4899,#9d174d)}
+.card-info{flex:1;min-width:0}
+.card-name{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.card-sub{font-size:.73rem;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* STATUS BADGES */
+.badge{font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-transfer{background:#dbeafe;color:#1e40af}
+.badge-dropout{background:#fee2e2;color:#991b1b}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200}
+.overlay.open{display:block}
+.modal{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;padding:18px 14px 28px;max-height:94vh;overflow-y:auto;z-index:201;transform:translateY(100%);transition:transform .25s ease}
+.modal.open{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;background:#d1d5db;border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:1rem;font-weight:800;color:var(--teal-d);margin-bottom:16px;text-align:center}
+
+/* FORM */
+.form-group{margin-bottom:12px}
+label{display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:4px}
+label span{color:var(--red)}
+input[type=text],input[type=date],textarea,select{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:11px;font-family:'Tajawal',sans-serif;font-size:.9rem;color:var(--text);background:#f9fafb;outline:none;transition:.2s;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{border-color:var(--teal);background:#fff}
+textarea{min-height:60px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* STATUS SELECTOR */
+.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:4px}
+.status-opt{border:2px solid #e5e7eb;border-radius:10px;padding:10px 4px;text-align:center;cursor:pointer;transition:.15s;font-size:.8rem;font-weight:700}
+.status-opt:active{transform:scale(.96)}
+.status-opt.sel-active{border-color:var(--green);background:#dcfce7;color:#166534}
+.status-opt.sel-transfer{border-color:var(--blue);background:#dbeafe;color:#1e40af}
+.status-opt.sel-dropout{border-color:var(--red);background:#fee2e2;color:#991b1b}
+
+/* BUTTONS */
+.btn{display:block;width:100%;padding:12px;border:none;border-radius:13px;font-family:'Tajawal',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;transition:.15s;margin-top:8px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-danger{background:#fee2e2;color:var(--red)}
+.btn-close{background:#f3f4f6;color:#374151}
+.fab{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--teal),var(--teal-d));color:#fff;border:none;border-radius:50px;padding:13px 28px;font-family:'Tajawal',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(13,148,136,.45);z-index:50;display:flex;align-items:center;gap:7px;white-space:nowrap}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px}
+.stat-card{background:#fff;border-radius:14px;padding:14px;border:1.5px solid var(--border);text-align:center}
+.stat-num{font-size:1.9rem;font-weight:800;color:var(--teal-d)}
+.stat-lbl{font-size:.74rem;color:#6b7280;margin-top:2px}
+.sec-title{font-size:.85rem;font-weight:700;color:var(--teal-d);margin:12px 0 7px;padding-right:4px;border-right:3px solid var(--teal)}
+
+/* EXPORT */
+.exp-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px}
+.exp-card h3{font-size:.88rem;font-weight:700;margin-bottom:4px;color:var(--teal-d)}
+.exp-card p{font-size:.75rem;color:#6b7280;margin-bottom:8px}
+
+/* SETTINGS MODAL */
+.school-info-form input{margin-bottom:8px}
+
+/* TOAST */
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:var(--teal-d);color:#fff;padding:9px 20px;border-radius:30px;font-size:.82rem;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+
+.empty{text-align:center;padding:36px 16px;color:#9ca3af}
+.empty div{font-size:2.2rem;margin-bottom:8px}
+
+/* PRINT */
+@media print{
+  body{background:#fff!important;padding:0!important}
+  .header,.tabs,.class-bar,.fab,.toast,.overlay,.modal,
+  .search-wrap,.filter-row,.count-badge,.no-print{display:none!important}
+  .page{display:block!important;padding:0!important}
+  #printArea{display:block!important}
+}
+#printArea{display:none}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-row">
+    <div>
+      <h1 id="hSchoolName">سجل المدرسة</h1>
+      <p id="hSchoolSub">الجمهورية العربية السورية</p>
+    </div>
+    <button class="btn-settings" onclick="openSettings()">⚙️</button>
+  </div>
+</div>
+
+<!-- CLASS CHIPS -->
+<div class="class-bar" id="classBar">
+  <!-- filled by JS -->
+  <button class="class-chip-add" onclick="addClass()">＋ شعبة</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('list')">📋 الطلاب</div>
+  <div class="tab" onclick="switchTab('stats')">📊 إحصاء</div>
+  <div class="tab" onclick="switchTab('export')">💾 تصدير</div>
+</div>
+
+<!-- LIST -->
+<div class="page active" id="page-list">
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="ابحث بالاسم..." oninput="renderList()">
+    <span class="search-icon">🔍</span>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" data-f="all"   onclick="setFilter('all',this)">الكل</button>
+    <button class="filter-btn"        data-f="active"   onclick="setFilter('active',this)">✅ منتظم</button>
+    <button class="filter-btn"        data-f="transfer" onclick="setFilter('transfer',this)">🔄 منتقل</button>
+    <button class="filter-btn"        data-f="dropout"  onclick="setFilter('dropout',this)">⚠️ متسرب</button>
+    <button class="filter-btn"        data-f="boy"      onclick="setFilter('boy',this)">👦 ذكور</button>
+    <button class="filter-btn"        data-f="girl"     onclick="setFilter('girl',this)">👧 إناث</button>
+  </div>
+  <div class="count-badge" id="countBadge"></div>
+  <div id="studentList"></div>
+</div>
+
+<!-- STATS -->
+<div class="page" id="page-stats">
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num" id="sTotal">0</div><div class="stat-lbl">إجمالي</div></div>
+    <div class="stat-card"><div class="stat-num" id="sBoys">0</div><div class="stat-lbl">ذكور 👦</div></div>
+    <div class="stat-card"><div class="stat-num" id="sGirls">0</div><div class="stat-lbl">إناث 👧</div></div>
+    <div class="stat-card"><div class="stat-num" id="sActive">0</div><div class="stat-lbl">منتظم ✅</div></div>
+    <div class="stat-card"><div class="stat-num" id="sTransfer">0</div><div class="stat-lbl">منتقل 🔄</div></div>
+    <div class="stat-card"><div class="stat-num" id="sDropout">0</div><div class="stat-lbl">متسرب ⚠️</div></div>
+  </div>
+  <div id="statsDetail"></div>
+</div>
+
+<!-- EXPORT -->
+<div class="page" id="page-export">
+  <div class="exp-card">
+    <h3>🖨️ طباعة كشف الشعبة</h3>
+    <p>طباعة قائمة منظمة بجميع طلاب الشعبة الحالية</p>
+    <button class="btn btn-primary" onclick="doPrint()">🖨️ طباعة</button>
+  </div>
+  <div class="exp-card">
+    <h3>📊 تحميل Excel (اتجاه عربي)</h3>
+    <p>ملف xlsx جاهز — الأعمدة من اليمين لليسار تلقائياً</p>
+    <button class="btn btn-primary" onclick="downloadXLSX()">⬇️ تحميل Excel</button>
+  </div>
+  <div class="exp-card">
+    <h3>📋 نسخ الأسماء فقط</h3>
+    <p>قائمة بأسماء طلاب الشعبة الحالية للصق أي مكان</p>
+    <button class="btn btn-primary" onclick="copyNames()">📋 نسخ</button>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal(-1)">➕ إضافة طالب</button>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+
+<!-- STUDENT MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-handle"></div>
+  <div class="modal-title" id="modalTitle">إضافة طالب</div>
+
+  <div class="form-group">
+    <label>الجنس <span>*</span></label>
+    <select id="fGender">
+      <option value="boy">👦 ذكر</option>
+      <option value="girl">👧 أنثى</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>اسم التلميذ <span>*</span></label>
+    <input type="text" id="fName" placeholder="الاسم الكامل">
+  </div>
+
+  <div class="row2">
+    <div class="form-group">
+      <label>اسم الأب <span>*</span></label>
+      <input type="text" id="fFather" placeholder="اسم الأب">
+    </div>
+    <div class="form-group">
+      <label>اسم الأم</label>
+      <input type="text" id="fMother" placeholder="اسم الأم">
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>تاريخ الميلاد</label>
+    <input type="date" id="fBirth">
+  </div>
+
+  <div class="form-group">
+    <label>حالة الطالب <span>*</span></label>
+    <div class="status-grid">
+      <div class="status-opt sel-active" data-s="active"   onclick="pickStatus('active')">✅<br>منتظم</div>
+      <div class="status-opt"            data-s="transfer" onclick="pickStatus('transfer')">🔄<br>منتقل</div>
+      <div class="status-opt"            data-s="dropout"  onclick="pickStatus('dropout')">⚠️<br>متسرب</div>
+    </div>
+    <input type="hidden" id="fStatus" value="active">
+  </div>
+
+  <div class="form-group" id="transferDetails" style="display:none">
+    <label>المدرسة المنقول إليها / التاريخ</label>
+    <input type="text" id="fTransferTo" placeholder="مثال: مدرسة النور — 15/3/2025">
+  </div>
+
+  <div class="form-group">
+    <label>ملاحظات</label>
+    <textarea id="fNotes" placeholder="أي ملاحظات..."></textarea>
+  </div>
+
+  <input type="hidden" id="fIdx" value="-1">
+
+  <button class="btn btn-primary" onclick="saveStudent()">✅ حفظ</button>
+  <button class="btn btn-danger" id="btnDel" onclick="deleteStudent()" style="display:none">🗑️ حذف</button>
+  <button class="btn btn-close"  onclick="closeModal()">إلغاء</button>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="ovSettings" onclick="closeSettings()"></div>
+<div class="modal" id="modalSettings">
+  <div class="modal-handle"></div>
+  <div class="modal-title">⚙️ إعدادات المدرسة</div>
+  <div class="school-info-form">
+    <div class="form-group"><label>اسم المدرسة</label><input type="text" id="sSchool" placeholder="مدرسة الفتح فوج أول"></div>
+    <div class="form-group"><label>المديرية</label><input type="text" id="sDir" placeholder="مديرية التربية في حماه"></div>
+    <div class="form-group"><label>العام الدراسي</label><input type="text" id="sYear" placeholder="2025-2026"></div>
+  </div>
+  <button class="btn btn-primary" onclick="saveSettings()">✅ حفظ</button>
+  <button class="btn btn-close"   onclick="closeSettings()">إلغاء</button>
+</div>
+
+<!-- PRINT AREA (hidden, used only for print) -->
+<div id="printArea"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── HELPERS ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function excelNum(v) {
+  if (!v && v !== 0) return '';
+  const s = String(v).trim();
+  if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
+  if (s.match(/\d{1,2}\/\d{1,2}\/+\d{2,4}/)) {
+    const p = s.replace(/\/+/g,'/').split('/').filter(Boolean);
+    if (p.length === 3) {
+      let [d,m,y] = p;
+      if (y.length === 2) y = '20'+y;
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return '';
+  }
+  const n = parseFloat(s);
+  if (isNaN(n)) return '';
+  const base = new Date(1899,11,30).getTime();
+  const dt = new Date(base + n*86400000);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+// ─── DEFAULT DATA ─────────────────────────────────────────────────────────
+const DEFAULT_CLASSES = [
+  {
+    id:'c1', name:'ص٢ — شعبة أولى', grade:'الثاني',
+    students:[]
+  },
+  {
+    id:'c2', name:'ص٢ — شعبة ثانية', grade:'الثاني',
+    students:[
+      {name:'احمد العمر',      father:'حسن',        mother:'وفاء',     birth:'1/1/2019', gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'اسامه جنيدو',     father:'مرهف',       mother:'نور',      birth:'43219.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'الياس الباكير',   father:'خالد',       mother:'مريم',     birth:'18/6//19', gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'تيم المصطفى',     father:'محمود',      mother:'ماجدة',    birth:'43511.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'حسين دندش',       father:'محمد',       mother:'غزوة',     birth:'43831.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'حمزة المصطفى',    father:'يحيى',       mother:'رحمه',     birth:'43831.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'حكمت اسماعيل',    father:'عبدالسلام',  mother:'حنان',     birth:'43320.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'خالد حماش',       father:'ساري',       mother:'امينه',    birth:'43238.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'علي المصطفى',     father:'يحيى',       mother:'رحمه',     birth:'43831.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'علي الخضر',       father:'خالد',       mother:'شمسة',     birth:'43678.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'فادي طوقاج',      father:'احمد',       mother:'اسماء',    birth:'43833.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'فراس الباكير',    father:'خالد',       mother:'إيناس',    birth:'43739.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'محمد لالو',       father:'احمد',       mother:'شهيرة',    birth:'43651.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'محمود الحلاق',    father:'بهاء الدين', mother:'سارة',     birth:'42790.0',  gender:'boy',  status:'active',   transferTo:'',notes:''},
+      {name:'أسيل الحسين',     father:'شعيب',       mother:'أسماء',    birth:'43678.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'أسيل علوش',       father:'احمد',       mother:'شيرين',    birth:'31/3/19',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'أسينات الخالد',   father:'خالد',       mother:'آمنه',     birth:'43595.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'آمنه الخضر',      father:'امين',       mother:'صفاء',     birth:'43836.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'إيمان الباكير',   father:'احمد',       mother:'آمنه',     birth:'43831.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'بيسان سلامه',     father:'صالح',       mother:'كوثر',     birth:'43214.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'بيان الخالد',     father:'محمد',       mother:'منى',      birth:'43352.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'تالا جنيدو',      father:'خالد',       mother:'صباح',     birth:'43745.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'تولاي الحاتم',    father:'محمد',       mother:'فاتن',     birth:'43345.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'جنى الحاتم',      father:'احمد',       mother:'رجاء',     birth:'43240.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'حليمه الحلاق',    father:'جمعه',       mother:'ناريمان',  birth:'43165.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'رهف الكردي',      father:'بلال',       mother:'نهيدة',    birth:'43467.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'زينب الحلاق',     father:'بهاء الدين', mother:'سارة',     birth:'43197.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'شام الحاتم',      father:'قصي',        mother:'هدى',      birth:'43833.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'غالية شراق',      father:'عمار',       mother:'حلا',      birth:'1/1/20',   gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'غانية القاسم',    father:'عدنان',      mother:'مريم',     birth:'43231.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'مؤمنه الخالد',    father:'معاوية',     mother:'شمس',      birth:'43831.0',  gender:'girl', status:'active',   transferTo:'',notes:''},
+      {name:'نور عكاش',        father:'محمد',       mother:'مرح',      birth:'29/8/19',  gender:'girl', status:'active',   transferTo:'',notes:''},
+    ]
+  }
+];
+DEFAULT_CLASSES[1].students.forEach(s=>{ s.birth=excelNum(s.birth); });
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+const SK = 'schoolReg_v3';
+let state = { classes:[], activeClass:0, school:'مدرسة الفتح فوج أول', dir:'مديرية التربية في حماه', year:'2025-2026' };
+let filter = 'all';
+
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem(SK)); if(d&&d.classes){ state=d; return; } }catch(e){}
+  state.classes = DEFAULT_CLASSES.map(c=>({...c, students: c.students.map(s=>({...s}))}));
+  save();
+}
+function save(){ localStorage.setItem(SK,JSON.stringify(state)); }
+function cls(){ return state.classes[state.activeClass] || {students:[]}; }
+
+// ─── CLASS CHIPS ─────────────────────────────────────────────────────────
+function renderChips(){
+  const bar = $('classBar');
+  bar.innerHTML = '';
+  state.classes.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className='class-chip'+(i===state.activeClass?' active':'');
+    d.textContent=c.name;
+    d.onclick=()=>{ state.activeClass=i; save(); renderChips(); renderList(); };
+    d.oncontextmenu=e=>{ e.preventDefault(); renameClass(i); };
+    bar.appendChild(d);
+  });
+  const add=document.createElement('button');
+  add.className='class-chip-add';
+  add.textContent='＋ شعبة';
+  add.onclick=addClass;
+  bar.appendChild(add);
+}
+
+function addClass(){
+  const name=prompt('اسم الشعبة الجديدة (مثال: ص٣ — شعبة أولى):');
+  if(!name) return;
+  state.classes.push({id:'c'+Date.now(),name,grade:'',students:[]});
+  state.activeClass=state.classes.length-1;
+  save(); renderChips(); renderList();
+  showToast('✅ تمت إضافة الشعبة');
+}
+function renameClass(i){
+  const name=prompt('الاسم الجديد للشعبة:',state.classes[i].name);
+  if(!name) return;
+  state.classes[i].name=name;
+  save(); renderChips();
+  showToast('✅ تم التعديل');
+}
+
+// ─── FILTER ───────────────────────────────────────────────────────────────
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  renderList();
+}
+
+// ─── LIST ─────────────────────────────────────────────────────────────────
+const statusLabel = {active:'منتظم', transfer:'منتقل', dropout:'متسرب'};
+const statusClass = {active:'badge-active', transfer:'badge-transfer', dropout:'badge-dropout'};
+
+function renderList(){
+  const q=$('searchInput').value.trim().toLowerCase();
+  let list=cls().students;
+  if(q) list=list.filter(s=>s.name.toLowerCase().includes(q)||s.father.toLowerCase().includes(q));
+  if(filter==='active')   list=list.filter(s=>s.status==='active');
+  if(filter==='transfer') list=list.filter(s=>s.status==='transfer');
+  if(filter==='dropout')  list=list.filter(s=>s.status==='dropout');
+  if(filter==='boy')      list=list.filter(s=>s.gender==='boy');
+  if(filter==='girl')     list=list.filter(s=>s.gender==='girl');
+
+  $('countBadge').textContent=list.length+' طالب';
+  const container=$('studentList');
+  if(!list.length){
+    container.innerHTML='<div class="empty"><div>🔍</div><p>لا توجد نتائج</p></div>';
+    return;
+  }
+  const allStudents = cls().students;
+  container.innerHTML=list.map(s=>{
+    const idx=allStudents.indexOf(s);
+    const init=s.name.trim().split(' ').map(w=>w[0]||'').join('').substring(0,2);
+    let sub=s.father||'';
+    if(s.status==='transfer'&&s.transferTo) sub+=' · '+s.transferTo;
+    if(s.notes) sub+=(sub?' · ':'')+' 📝';
+    return `<div class="student-card" onclick="openModal(${idx})">
+      <div class="avatar ${s.gender==='girl'?'av-girl':'av-boy'}">${init}</div>
+      <div class="card-info">
+        <div class="card-name">
+          ${s.name}
+          <span class="badge ${statusClass[s.status]||'badge-active'}">${statusLabel[s.status]||'منتظم'}</span>
+        </div>
+        <div class="card-sub">${sub}</div>
+      </div>
+      <div style="color:var(--muted)">‹</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────
+function openModal(idx){
+  $('fIdx').value=idx;
+  $('btnDel').style.display=idx>=0?'block':'none';
+  $('modalTitle').textContent=idx>=0?'✏️ تعديل بيانات':'➕ إضافة طالب';
+  if(idx>=0){
+    const s=cls().students[idx];
+    $('fGender').value=s.gender||'boy';
+    $('fName').value=s.name;
+    $('fFather').value=s.father;
+    $('fMother').value=s.mother||'';
+    $('fBirth').value=s.birth||'';
+    $('fNotes').value=s.notes||'';
+    $('fTransferTo').value=s.transferTo||'';
+    pickStatus(s.status||'active');
+  } else {
+    $('fGender').value='boy';
+    $('fName').value='';
+    $('fFather').value='';
+    $('fMother').value='';
+    $('fBirth').value='';
+    $('fNotes').value='';
+    $('fTransferTo').value='';
+    pickStatus('active');
+  }
+  $('overlay').classList.add('open');
+  setTimeout(()=>$('modal').classList.add('open'),10);
+  setTimeout(()=>$('fName').focus(),300);
+}
+function closeModal(){
+  $('modal').classList.remove('open');
+  $('overlay').classList.remove('open');
+}
+function pickStatus(s){
+  $('fStatus').value=s;
+  document.querySelectorAll('.status-opt').forEach(el=>{
+    const ds=el.dataset.s;
+    el.className='status-opt'+(ds===s?' sel-'+s:'');
+  });
+  $('transferDetails').style.display=s==='transfer'?'block':'none';
+}
+
+function saveStudent(){
+  const name=$('fName').value.trim();
+  const father=$('fFather').value.trim();
+  if(!name||!father){ showToast('⚠️ أدخل اسم الطالب والأب'); return; }
+  const data={
+    gender:$('fGender').value,
+    name,father,
+    mother:$('fMother').value.trim(),
+    birth:$('fBirth').value,
+    status:$('fStatus').value,
+    transferTo:$('fTransferTo').value.trim(),
+    notes:$('fNotes').value.trim()
+  };
+  const idx=parseInt($('fIdx').value);
+  if(idx>=0){ cls().students[idx]=data; showToast('✅ تم التعديل'); }
+  else       { cls().students.push(data); showToast('✅ تمت الإضافة'); }
+  save(); closeModal(); renderList();
+}
+function deleteStudent(){
+  const idx=parseInt($('fIdx').value);
+  if(idx<0) return;
+  if(!confirm('حذف '+cls().students[idx].name+'؟')) return;
+  cls().students.splice(idx,1);
+  save(); closeModal(); renderList();
+  showToast('🗑️ تم الحذف');
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────
+function renderStats(){
+  const st=cls().students;
+  const boys=st.filter(s=>s.gender!=='girl');
+  const girls=st.filter(s=>s.gender==='girl');
+  const active=st.filter(s=>s.status==='active');
+  const transfer=st.filter(s=>s.status==='transfer');
+  const dropout=st.filter(s=>s.status==='dropout');
+  $('sTotal').textContent=st.length;
+  $('sBoys').textContent=boys.length;
+  $('sGirls').textContent=girls.length;
+  $('sActive').textContent=active.length;
+  $('sTransfer').textContent=transfer.length;
+  $('sDropout').textContent=dropout.length;
+
+  const mkList=(arr,title)=> arr.length ? `<div class="sec-title">${title}</div>`+
+    arr.map((s,i)=>`<div class="student-card">
+      <div class="avatar ${s.gender==='girl'?'av-girl':'av-boy'}">${i+1}</div>
+      <div class="card-info">
+        <div class="card-name">${s.name}<span class="badge ${statusClass[s.status]||'badge-active'}">${statusLabel[s.status]||''}</span></div>
+        <div class="card-sub">${s.father||''}${s.transferTo?' · '+s.transferTo:''}</div>
+      </div></div>`).join('') : '';
+
+  $('statsDetail').innerHTML=
+    mkList(transfer,'🔄 المنتقلون')+
+    mkList(dropout,'⚠️ المتسربون')+
+    mkList(boys,'👦 الذكور المنتظمون')+
+    mkList(girls,'👧 الإناث المنتظمات');
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────
+function openSettings(){
+  $('sSchool').value=state.school;
+  $('sDir').value=state.dir;
+  $('sYear').value=state.year;
+  $('ovSettings').classList.add('open');
+  setTimeout(()=>$('modalSettings').classList.add('open'),10);
+}
+function closeSettings(){
+  $('modalSettings').classList.remove('open');
+  $('ovSettings').classList.remove('open');
+}
+function saveSettings(){
+  state.school=$('sSchool').value.trim()||state.school;
+  state.dir=$('sDir').value.trim()||state.dir;
+  state.year=$('sYear').value.trim()||state.year;
+  save(); updateHeader(); closeSettings();
+  showToast('✅ تم الحفظ');
+}
+function updateHeader(){
+  $('hSchoolName').textContent=state.school||'سجل المدرسة';
+  $('hSchoolSub').textContent=(state.dir||'')+(state.year?' — '+state.year:'');
+}
+
+// ─── PRINT ────────────────────────────────────────────────────────────────
+function doPrint(){
+  const c=cls();
+  const active=c.students.filter(s=>s.status==='active');
+  const transfer=c.students.filter(s=>s.status==='transfer');
+  const dropout=c.students.filter(s=>s.status==='dropout');
+
+  const tbl=(arr,title,cols)=>{
+    if(!arr.length) return '';
+    const rows=arr.map((s,i)=>`<tr>
+      <td>${i+1}</td>
+      <td>${s.name}</td>
+      <td>${s.father}</td>
+      <td>${s.mother||''}</td>
+      <td>${s.birth||''}</td>
+      ${cols==='transfer'?`<td>${s.transferTo||''}</td>`:''}
+      <td>${s.notes||''}</td>
+    </tr>`).join('');
+    const extraHead=cols==='transfer'?'<th>المنقول إليه</th>':'';
+    return `<h3 style="margin:16px 0 6px;color:#0f766e">${title} (${arr.length})</h3>
+    <table>
+      <thead><tr><th>#</th><th>اسم التلميذ</th><th>الأب</th><th>الأم</th><th>الميلاد</th>${extraHead}<th>ملاحظات</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  };
+
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8">
+<style>
+  @page{size:A4;margin:1.5cm}
+  body{font-family:Arial,Helvetica,sans-serif;direction:rtl;font-size:11px;color:#111}
+  .top{text-align:center;margin-bottom:12px;border-bottom:2px solid #0d9488;padding-bottom:8px}
+  .top h2{font-size:14px;margin:0 0 2px}
+  .top p{margin:0;color:#555;font-size:10px}
+  table{width:100%;border-collapse:collapse;margin-bottom:8px}
+  th,td{border:1px solid #aaa;padding:4px 6px;text-align:right}
+  th{background:#0d9488;color:#fff;font-size:10px}
+  tr:nth-child(even){background:#f0fdfa}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .sum-box{border:1px solid #ccc;border-radius:6px;padding:6px 12px;font-size:10px;text-align:center}
+  .sum-num{font-size:16px;font-weight:700;color:#0f766e}
+</style></head><body>
+<div class="top">
+  <h2>${state.school}</h2>
+  <p>${state.dir} &nbsp;|&nbsp; العام الدراسي ${state.year}</p>
+  <p>الشعبة: <strong>${c.name}</strong></p>
+</div>
+<div class="summary">
+  <div class="sum-box"><div class="sum-num">${c.students.length}</div>إجمالي</div>
+  <div class="sum-box"><div class="sum-num">${active.length}</div>منتظم</div>
+  <div class="sum-box"><div class="sum-num">${transfer.length}</div>منتقل</div>
+  <div class="sum-box"><div class="sum-num">${dropout.length}</div>متسرب</div>
+</div>
+${tbl(active,'✅ الطلاب المنتظمون','')}
+${tbl(transfer,'🔄 المنتقلون','transfer')}
+${tbl(dropout,'⚠️ المتسربون','')}
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body></html>`;
+
+  const w=window.open('','_blank','width=800,height=700');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.onload=function(){ w.focus(); w.print(); };
+}
+
+// ─── XLSX RTL EXPORT ─────────────────────────────────────────────────────
+function downloadXLSX(){
+  const c = cls();
+  const headers = ['#','اسم التلميذ','اسم الأب','اسم الأم','تاريخ الميلاد','الجنس','الحالة','المنقول إليه','ملاحظات'];
+  const data = c.students.map((s,i)=>[
+    i+1, s.name, s.father, s.mother||'', s.birth||'',
+    s.gender==='girl'?'أنثى':'ذكر',
+    statusLabel[s.status]||'منتظم',
+    s.transferTo||'', s.notes||''
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  ws['!sheetView'] = [{ rightToLeft: true }];
+  ws['!cols'] = [{wch:4},{wch:22},{wch:13},{wch:13},{wch:13},{wch:7},{wch:9},{wch:22},{wch:20}];
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  // Header style
+  for(let C=range.s.c; C<=range.e.c; C++){
+    const addr=XLSX.utils.encode_cell({r:0,c:C});
+    if(!ws[addr]) continue;
+    ws[addr].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'0D9488'}},alignment:{horizontal:'right',readingOrder:2}};
+  }
+  // Data cells RTL
+  for(let R=1;R<=range.e.r;R++){
+    for(let C=range.s.c;C<=range.e.c;C++){
+      const addr=XLSX.utils.encode_cell({r:R,c:C});
+      if(!ws[addr]) continue;
+      ws[addr].s={alignment:{horizontal:'right',readingOrder:2}};
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views:[{RTL:true}] };
+  XLSX.utils.book_append_sheet(wb, ws, c.name.substring(0,31));
+  XLSX.writeFile(wb, c.name.replace(/[\\/\*\[\]:?]/g,'_')+'.xlsx');
+  showToast('⬇️ جارٍ التحميل');
+}
+
+function copyNames(){
+  const names=cls().students.filter(s=>s.status==='active').map((s,i)=>`${i+1}. ${s.name}`).join('\n');
+  navigator.clipboard.writeText(names).then(()=>showToast('📋 تم نسخ الأسماء'));
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────
+function showToast(msg){
+  const t=$('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','stats','export'][i]===id));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('page-'+id).classList.add('active');
+  if(id==='stats') renderStats();
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────
+load();
+updateHeader();
+renderChips();
+renderList();
+
+// Close modals on back-swipe / escape
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeSettings(); } });
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body>
+</html>
