@@ -359,6 +359,20 @@ textarea{min-height:60px;resize:vertical}
 <div id="printArea"></div>
 
 <!-- TOAST -->
+
+<!-- RESET MODAL -->
+<div class="overlay" id="ovReset" onclick="closeReset()"></div>
+<div class="modal" id="modalReset">
+  <div class="modal-handle"></div>
+  <div class="modal-title">🔄 إعادة ضبط التطبيق</div>
+  <p style="text-align:center;color:#6b7280;font-size:.85rem;margin-bottom:16px">سيتم حذف جميع البيانات والعودة للإعدادات الافتراضية</p>
+  <div class="form-group">
+    <label>كلمة المرور <span>*</span></label>
+    <input type="password" id="resetPass" placeholder="أدخل كلمة المرور" style="font-size:1.1rem;letter-spacing:4px">
+  </div>
+  <button class="btn btn-danger" onclick="confirmReset()">🔄 إعادة الضبط</button>
+  <button class="btn btn-close"  onclick="closeReset()">إلغاء</button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1114,16 +1128,25 @@ function importBackup(input){
 
 // ─── RESET ────────────────────────────────────────────────────────────────
 function resetApp(){
-  const pass = prompt('أدخل كلمة المرور لإعادة الضبط:');
-  if(pass === null) return;
+  closeSettings();
+  $('resetPass').value='';
+  $('ovReset').classList.add('open');
+  setTimeout(()=>{ $('modalReset').classList.add('open'); $('resetPass').focus(); },10);
+}
+function closeReset(){
+  $('modalReset').classList.remove('open');
+  $('ovReset').classList.remove('open');
+}
+function confirmReset(){
+  const pass = $('resetPass').value;
   if(pass !== '7374'){
     showToast('❌ كلمة المرور غير صحيحة');
+    $('resetPass').value='';
     return;
   }
-  if(!confirm('⚠️ سيتم حذف جميع البيانات والعودة للإعدادات الافتراضية. هل أنت متأكد؟')) return;
   localStorage.clear();
-  showToast('✅ تمت إعادة الضبط');
-  setTimeout(()=>location.reload(), 1000);
+  showToast('✅ تمت إعادة الضبط...');
+  setTimeout(()=>location.reload(), 1200);
 }
 // ─── INIT ────────────────────────────────────────────────────────────────
 load();
