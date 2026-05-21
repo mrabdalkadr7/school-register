@@ -165,8 +165,10 @@ textarea{min-height:60px;resize:vertical}
 <!-- TABS -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('list')">📋 الطلاب</div>
+  <div class="tab" onclick="switchTab('marks')">📝 العلامات</div>
   <div class="tab" onclick="switchTab('stats')">📊 إحصاء</div>
   <div class="tab" onclick="switchTab('export')">💾 تصدير</div>
+  <div class="tab" onclick="switchTab('backup')">🔄 نقل</div>
 </div>
 
 <!-- LIST -->
@@ -216,6 +218,58 @@ textarea{min-height:60px;resize:vertical}
     <h3>📋 نسخ الأسماء فقط</h3>
     <p>قائمة بأسماء طلاب الشعبة الحالية للصق أي مكان</p>
     <button class="btn btn-primary" onclick="copyNames()">📋 نسخ</button>
+  </div>
+
+</div>
+
+
+<!-- BACKUP PAGE -->
+<div class="page" id="page-backup">
+  <div class="exp-card" style="border-color:#fbbf24">
+    <h3>💾 تصدير نسخة احتياطية</h3>
+    <p>يصدّر كل البيانات — الطلاب والعلامات والإعدادات — كملف واحد يمكن إرساله عبر واتساب</p>
+    <button class="btn btn-primary" style="background:#f59e0b" onclick="exportBackup()">💾 تصدير</button>
+  </div>
+  <div class="exp-card" style="border-color:#86efac">
+    <h3>📥 استيراد نسخة احتياطية</h3>
+    <p>استعادة البيانات من ملف JSON — سيستبدل البيانات الحالية بالكامل</p>
+    <button class="btn btn-primary" style="background:#10b981" onclick="$('importFile2').click()">📥 استيراد</button>
+    <input type="file" id="importFile2" accept=".json" style="display:none" onchange="importBackup(this)">
+  </div>
+</div>
+
+<!-- MARKS PAGE -->
+<div class="page" id="page-marks">
+
+  <!-- Subject + Term selector -->
+  <div class="marks-top">
+    <div class="marks-sel-row">
+      <select id="mSubject" onchange="renderMarks()">
+        <option value="english">اللغة الأجنبية</option>
+        <option value="math">الرياضيات</option>
+        <option value="arabic">اللغة العربية</option>
+        <option value="science">العلوم</option>
+        <option value="social">التربية الاجتماعية</option>
+        <option value="islamic">التربية الإسلامية</option>
+        <option value="music">الموسيقى</option>
+        <option value="pe">الرياضة</option>
+        <option value="art">الرسم</option>
+      </select>
+      <select id="mTerm" onchange="renderMarks()">
+        <option value="1">الفصل الأول</option>
+        <option value="2">الفصل الثاني</option>
+      </select>
+    </div>
+    <div class="marks-period-row" id="mPeriodRow"></div>
+  </div>
+
+  <!-- Marks table -->
+  <div id="marksTableWrap"></div>
+
+  <!-- Marks export -->
+  <div style="padding:10px 0;display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1;margin:0" onclick="printMarks()">🖨️ طباعة</button>
+    <button class="btn btn-primary" style="flex:1;margin:0;background:#0f766e" onclick="exportMarksXLSX()">⬇️ Excel</button>
   </div>
 </div>
 
@@ -297,6 +351,7 @@ textarea{min-height:60px;resize:vertical}
     <div class="form-group"><label>العام الدراسي</label><input type="text" id="sYear" placeholder="2025-2026"></div>
   </div>
   <button class="btn btn-primary" onclick="saveSettings()">✅ حفظ</button>
+  <button class="btn btn-danger"  onclick="resetApp()">🔄 إعادة ضبط التطبيق</button>
   <button class="btn btn-close"   onclick="closeSettings()">إلغاء</button>
 </div>
 
@@ -378,12 +433,23 @@ DEFAULT_CLASSES[1].students.forEach(s=>{ s.birth=excelNum(s.birth); });
 
 // ─── STATE ────────────────────────────────────────────────────────────────
 const SK = 'schoolReg_v3';
-let state = { classes:[], activeClass:0, school:'مدرسة الفتح فوج أول', dir:'مديرية التربية في حماه', year:'2025-2026' };
+let state = { classes:[], activeClass:0, school:'مدرسة الفتح فوج أول', dir:'مديرية التربية والتعليم في حماه', year:'2025-2026' };
 let filter = 'all';
 
 function load(){
   try{ const d=JSON.parse(localStorage.getItem(SK)); if(d&&d.classes){ state=d; return; } }catch(e){}
   state.classes = DEFAULT_CLASSES.map(c=>({...c, students: c.students.map(s=>({...s}))}));
+  // Add more empty classes for other sections
+  const extraClasses = [
+    'ص١ — شعبة أولى','ص١ — شعبة ثانية','ص١ — شعبة ثالثة',
+    'ص٣ — شعبة أولى','ص٣ — شعبة ثانية',
+    'ص٤ — شعبة أولى','ص٤ — شعبة ثانية',
+    'ص٥ — شعبة أولى','ص٥ — شعبة ثانية',
+    'ص٦ — شعبة أولى','ص٦ — شعبة ثانية',
+  ];
+  extraClasses.forEach(name=>{
+    state.classes.push({id:'c'+Date.now()+Math.random(), name, grade:'', students:[]});
+  });
   save();
 }
 function save(){ localStorage.setItem(SK,JSON.stringify(state)); }
@@ -720,12 +786,345 @@ function showToast(msg){
 
 // ─── TABS ────────────────────────────────────────────────────────────────
 function switchTab(id){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','stats','export'][i]===id));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','marks','stats','export','backup'][i]===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   $('page-'+id).classList.add('active');
   if(id==='stats') renderStats();
+  if(id==='marks'){ activePeriod=TERM_PERIODS[$('mTerm').value][0].id; renderMarks(); }
 }
 
+
+// ─── MARKS ───────────────────────────────────────────────────────────────────
+
+const SUBJECTS = [
+  {id:'english', name:'اللغة الأجنبية'},
+  {id:'math',    name:'الرياضيات'},
+  {id:'arabic',  name:'اللغة العربية'},
+  {id:'science', name:'العلوم'},
+  {id:'social',  name:'التربية الاجتماعية'},
+  {id:'islamic', name:'التربية الإسلامية'},
+  {id:'music',   name:'الموسيقى'},
+  {id:'pe',      name:'الرياضة'},
+  {id:'art',     name:'الرسم'},
+];
+
+// Periods per term (after removing one month from each)
+const TERM_PERIODS = {
+  '1': [{id:'k1', name:'كانون ١'}, {id:'k2', name:'كانون ٢'}],
+  '2': [{id:'sh', name:'شباط'},   {id:'ny', name:'نيسان+أيار'}],
+};
+
+// Each period has 4 components max=25 each → total 100
+const PERIOD_FIELDS = [
+  {id:'mth', label:'مذاكرة', max:25},
+  {id:'sho', label:'شفهي',   max:25},
+  {id:'waz', label:'وظائف',  max:25},
+  {id:'imt', label:'امتحان', max:25},
+];
+
+let activePeriod = 'k1';
+
+function marksKey(classIdx, subject, term){
+  return `marks_${classIdx}_${subject}_${term}`;
+}
+function loadMarks(subject, term){
+  const k = marksKey(state.activeClass, subject, term);
+  try{ return JSON.parse(localStorage.getItem(k)) || {}; } catch(e){ return {}; }
+}
+function saveMarks(subject, term, data){
+  const k = marksKey(state.activeClass, subject, term);
+  localStorage.setItem(k, JSON.stringify(data));
+}
+
+function renderPeriodRow(){
+  const term = $('mTerm').value;
+  const periods = TERM_PERIODS[term];
+  const row = $('mPeriodRow');
+  row.innerHTML = periods.map(p =>
+    `<button class="period-btn${activePeriod===p.id?' active':''}" onclick="setPeriod('${p.id}')">${p.name}</button>`
+  ).join('');
+}
+
+function setPeriod(pid){
+  activePeriod = pid;
+  renderPeriodRow();
+  renderMarks();
+}
+
+function renderMarks(){
+  const subject = $('mSubject').value;
+  const term    = $('mTerm').value;
+  const periods = TERM_PERIODS[term];
+
+  // Make sure activePeriod is valid for current term
+  if(!periods.find(p=>p.id===activePeriod)) activePeriod = periods[0].id;
+  renderPeriodRow();
+
+  const data     = loadMarks(subject, term);
+  const students = cls().students.filter(s=>s.status==='active');
+  const period   = periods.find(p=>p.id===activePeriod);
+
+  const wrap = $('marksTableWrap');
+  if(!students.length){ wrap.innerHTML='<div class="empty"><div>👥</div><p>لا يوجد طلاب منتظمون</p></div>'; return; }
+
+  // Build table
+  let html = `<div class="marks-table-wrap"><table class="marks-table">
+  <thead>
+    <tr>
+      <th class="th-name" rowspan="2">#  اسم التلميذ</th>
+      <th class="th-group" colspan="4">${period.name}</th>
+      <th rowspan="2" style="background:var(--teal-d)">المجموع<br><small>100</small></th>
+    </tr>
+    <tr>`;
+  PERIOD_FIELDS.forEach(f=>{
+    html += `<th>${f.label}<br><small>${f.max}</small></th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  students.forEach((s, i)=>{
+    const sid = s.name;
+    const sd  = data[sid] || {};
+    const pd  = sd[activePeriod] || {};
+
+    let tot = 0;
+    PERIOD_FIELDS.forEach(f=>{ tot += parseFloat(pd[f.id]||0)||0; });
+
+    html += `<tr>
+      <td class="td-name">${i+1}. ${s.name}</td>`;
+    PERIOD_FIELDS.forEach(f=>{
+      const val = pd[f.id]||'';
+      html += `<td><input type="number" min="0" max="${f.max}" value="${val}"
+        oninput="onMarkInput(this,'${encodeURIComponent(sid)}','${activePeriod}','${f.id}',${f.max},'${subject}','${term}')"
+        onblur="saveMarkBlur('${encodeURIComponent(sid)}','${activePeriod}','${f.id}',this.value,'${subject}','${term}')"
+        ></td>`;
+    });
+    html += `<td class="total">${tot||''}</td></tr>`;
+  });
+
+  // Totals row
+  html += `<tr style="background:var(--teal-l)!important">
+    <td class="td-name" style="font-weight:700;color:var(--teal-d)">المتوسط</td>`;
+  PERIOD_FIELDS.forEach(f=>{
+    const vals = students.map(s=>parseFloat((data[s.name]?.[activePeriod]?.[f.id])||0)||0);
+    const avg  = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '';
+    html += `<td style="font-weight:700;color:var(--teal-d)">${avg}</td>`;
+  });
+  html += `<td class="grand">-</td></tr>`;
+
+  html += `</tbody></table></div>`;
+  html += `<div class="marks-save-row"><span class="auto-save-lbl">💾 يحفظ تلقائياً</span>
+    <span class="auto-save-lbl" id="saveStatus"></span></div>`;
+
+  wrap.innerHTML = html;
+}
+
+function onMarkInput(el, sid, period, field, max, subject, term){
+  const v = parseFloat(el.value);
+  if(el.value !== '' && (isNaN(v) || v < 0 || v > max)){
+    el.classList.add('over');
+  } else {
+    el.classList.remove('over');
+    saveMarkBlur(sid, period, field, el.value, subject, term);
+    // Update row total
+    const row = el.closest('tr');
+    const inputs = row.querySelectorAll('input');
+    let tot = 0;
+    inputs.forEach(inp=>{ tot += parseFloat(inp.value||0)||0; });
+    row.querySelector('.total').textContent = tot || '';
+  }
+}
+
+function saveMarkBlur(sid, period, field, value, subject, term){
+  sid = decodeURIComponent(sid);
+  const data = loadMarks(subject, term);
+  if(!data[sid]) data[sid] = {};
+  if(!data[sid][period]) data[sid][period] = {};
+  data[sid][period][field] = value;
+  saveMarks(subject, term, data);
+  const st = $('saveStatus');
+  if(st){ st.textContent = '✅ محفوظ'; setTimeout(()=>{ if(st) st.textContent=''; }, 1500); }
+}
+
+function printMarks(){
+  const subject = $('mSubject').value;
+  const term    = $('mTerm').value;
+  const subName = SUBJECTS.find(s=>s.id===subject)?.name || subject;
+  const termName = term==='1'?'الفصل الأول':'الفصل الثاني';
+  const periods  = TERM_PERIODS[term];
+  const data     = loadMarks(subject, term);
+  const students = cls().students.filter(s=>s.status==='active');
+
+  let rows = '';
+  students.forEach((s,i)=>{
+    const sd = data[s.name] || {};
+    let p1tot=0, p2tot=0;
+    const cells = periods.map(p=>{
+      const pd = sd[p.id] || {};
+      let ptot=0;
+      const fCells = PERIOD_FIELDS.map(f=>{
+        const v = parseFloat(pd[f.id]||0)||0;
+        ptot += v;
+        return `<td>${v||''}</td>`;
+      }).join('');
+      if(p===periods[0]) p1tot=ptot; else p2tot=ptot;
+      return fCells + `<td><b>${ptot||''}</b></td>`;
+    }).join('');
+    const grand = p1tot + p2tot;
+    const final = grand ? Math.round(grand/2) : '';
+    rows += `<tr><td>${i+1}</td><td style="text-align:right">${s.name}</td>${cells}<td><b>${grand||''}</b></td><td><b>${final||''}</b></td></tr>`;
+  });
+
+  const periodHeaders = periods.map(p=>
+    `<th colspan="5">${p.name}</th>`
+  ).join('');
+  const fieldHeaders = periods.map(()=>
+    PERIOD_FIELDS.map(f=>`<th>${f.label}<br>${f.max}</th>`).join('') + '<th>مجموع<br>100</th>'
+  ).join('');
+
+  const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8">
+<style>
+  @page{size:A4 landscape;margin:1cm}
+  body{font-family:Arial,sans-serif;direction:rtl;font-size:10px}
+  .top{text-align:center;margin-bottom:8px}
+  .top h2{font-size:13px;margin:0 0 2px}
+  .top p{margin:0;color:#555}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #aaa;padding:3px 4px;text-align:center}
+  th{background:#0d9488;color:#fff}
+  tr:nth-child(even){background:#f0fdfa}
+</style></head><body>
+<div class="top">
+  <h2>${state.school} — ${cls().name}</h2>
+  <p>${subName} — ${termName} — ${state.year}</p>
+</div>
+<table>
+  <thead>
+    <tr><th rowspan="2">#</th><th rowspan="2" style="min-width:100px">اسم التلميذ</th>${periodHeaders}<th rowspan="2">المجموع<br>200</th><th rowspan="2">المحصلة<br>100</th></tr>
+    <tr>${fieldHeaders}</tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+<\/body><\/html>`;
+
+  const w = window.open('','_blank','width=900,height=650');
+  w.document.open(); w.document.write(html); w.document.close();
+  w.onload = function(){ w.focus(); w.print(); };
+}
+
+function exportMarksXLSX(){
+  const subject = $('mSubject').value;
+  const term    = $('mTerm').value;
+  const subName = SUBJECTS.find(s=>s.id===subject)?.name || subject;
+  const termName = term==='1'?'الفصل الأول':'الفصل الثاني';
+  const periods  = TERM_PERIODS[term];
+  const data     = loadMarks(subject, term);
+  const students = cls().students.filter(s=>s.status==='active');
+
+  const header1 = ['#','اسم التلميذ'];
+  const header2 = ['',''];
+  periods.forEach(p=>{
+    PERIOD_FIELDS.forEach(f=>{ header1.push(p.name); header2.push(f.label+'
+'+f.max); });
+    header1.push(p.name); header2.push('مجموع
+100');
+  });
+  header1.push('المجموع','المحصلة');
+  header2.push('200','100');
+
+  const rows = students.map((s,i)=>{
+    const sd = data[s.name]||{};
+    const row = [i+1, s.name];
+    let grand=0;
+    periods.forEach(p=>{
+      const pd=sd[p.id]||{};
+      let tot=0;
+      PERIOD_FIELDS.forEach(f=>{ const v=parseFloat(pd[f.id]||0)||0; row.push(v||''); tot+=v; });
+      row.push(tot||''); grand+=tot;
+    });
+    row.push(grand||'', grand?Math.round(grand/2):'');
+    return row;
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([header1, header2, ...rows]);
+  ws['!sheetView'] = [{rightToLeft:true}];
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = {Views:[{RTL:true}]};
+  XLSX.utils.book_append_sheet(wb, ws, subName.substring(0,31));
+  XLSX.writeFile(wb, `علامات_${subName}_${termName}.xlsx`);
+  showToast('⬇️ جارٍ التحميل');
+}
+
+
+// ─── BACKUP & RESTORE ────────────────────────────────────────────────────────
+function exportBackup(){
+  // Collect all localStorage data belonging to this app
+  const backup = {
+    version: 1,
+    date: new Date().toLocaleDateString('ar-SY'),
+    appData: {}
+  };
+
+  // Main state
+  backup.appData[SK] = localStorage.getItem(SK);
+
+  // All marks keys
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('marks_')){
+      backup.appData[k] = localStorage.getItem(k);
+    }
+  }
+
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'نسخة_احتياطية_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('💾 تم تصدير النسخة الاحتياطية');
+}
+
+function importBackup(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const backup = JSON.parse(e.target.result);
+      if(!backup.appData) throw new Error('ملف غير صحيح');
+
+      if(!confirm('سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية. هل أنت متأكد؟')) return;
+
+      // Restore all keys
+      Object.entries(backup.appData).forEach(([k,v])=>{
+        if(v !== null) localStorage.setItem(k, v);
+      });
+
+      showToast('✅ تم الاستيراد — سيُعاد تحميل التطبيق');
+      setTimeout(()=> location.reload(), 1500);
+    } catch(err){
+      showToast('❌ خطأ في الملف — تأكد أنه نسخة احتياطية صحيحة');
+    }
+  };
+  reader.readAsText(file);
+  input.value = ''; // reset input
+}
+
+
+// ─── RESET ────────────────────────────────────────────────────────────────
+function resetApp(){
+  const pass = prompt('أدخل كلمة المرور لإعادة الضبط:');
+  if(pass === null) return;
+  if(pass !== '7374'){
+    showToast('❌ كلمة المرور غير صحيحة');
+    return;
+  }
+  if(!confirm('⚠️ سيتم حذف جميع البيانات والعودة للإعدادات الافتراضية. هل أنت متأكد؟')) return;
+  localStorage.clear();
+  showToast('✅ تمت إعادة الضبط');
+  setTimeout(()=>location.reload(), 1000);
+}
 // ─── INIT ────────────────────────────────────────────────────────────────
 load();
 updateHeader();
