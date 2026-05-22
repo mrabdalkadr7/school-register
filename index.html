@@ -132,6 +132,22 @@ textarea{min-height:60px;resize:vertical}
 .empty{text-align:center;padding:36px 16px;color:#9ca3af}
 .empty div{font-size:2.2rem;margin-bottom:8px}
 
+/* MARKS TABLE */
+.marks-sel-row{display:flex;gap:8px;margin-bottom:12px}
+.marks-sel-row select{flex:1}
+.period-btn{padding:6px 12px;border-radius:30px;background:#f1f5f9;border:1px solid var(--border);font-family:'Tajawal';font-size:.8rem;cursor:pointer;margin-left:6px}
+.period-btn.active{background:var(--teal);color:white;border-color:var(--teal)}
+.marks-table{width:100%;border-collapse:collapse;font-size:.75rem;overflow-x:auto;display:block}
+.marks-table th,.marks-table td{border:1px solid #e2e8f0;padding:6px 4px;text-align:center}
+.marks-table th{background:var(--teal);color:white;font-size:.7rem}
+.marks-table .th-name{min-width:90px}
+.marks-table .td-name{text-align:right;font-weight:500}
+.marks-table input{width:55px;padding:4px;text-align:center;border:1px solid #cbd5e1;border-radius:6px}
+.marks-table input.over{border-color:red;background:#fee2e2}
+.marks-table .total{font-weight:700;background:#f0fdfa}
+.auto-save-lbl{font-size:.65rem;color:#6b7280;margin-top:8px;display:inline-block}
+.marks-save-row{text-align:center;margin-top:6px}
+
 /* PRINT */
 @media print{
   body{background:#fff!important;padding:0!important}
@@ -165,9 +181,8 @@ textarea{min-height:60px;resize:vertical}
 <!-- TABS -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('list')">📋 الطلاب</div>
-  <div class="tab" onclick="switchTab('marks')">📝 العلامات</div>
   <div class="tab" onclick="switchTab('stats')">📊 إحصاء</div>
-  <div class="tab" onclick="switchTab('export')">💾 تصدير</div>
+  <div class="tab" onclick="switchTab('marks')">📝 علامات</div>
   <div class="tab" onclick="switchTab('backup')">🔄 نقل</div>
 </div>
 
@@ -202,52 +217,14 @@ textarea{min-height:60px;resize:vertical}
   <div id="statsDetail"></div>
 </div>
 
-<!-- EXPORT -->
-<div class="page" id="page-export">
-  <div class="exp-card">
-    <h3>🖨️ طباعة كشف الشعبة</h3>
-    <p>طباعة قائمة منظمة بجميع طلاب الشعبة الحالية</p>
-    <button class="btn btn-primary" onclick="doPrint()">🖨️ طباعة</button>
-  </div>
-  <div class="exp-card">
-    <h3>📊 تحميل Excel (اتجاه عربي)</h3>
-    <p>ملف xlsx جاهز — الأعمدة من اليمين لليسار تلقائياً</p>
-    <button class="btn btn-primary" onclick="downloadXLSX()">⬇️ تحميل Excel</button>
-  </div>
-  <div class="exp-card">
-    <h3>📋 نسخ الأسماء فقط</h3>
-    <p>قائمة بأسماء طلاب الشعبة الحالية للصق أي مكان</p>
-    <button class="btn btn-primary" onclick="copyNames()">📋 نسخ</button>
-  </div>
-
-</div>
-
-
-<!-- BACKUP PAGE -->
-<div class="page" id="page-backup">
-  <div class="exp-card" style="border-color:#fbbf24">
-    <h3>💾 تصدير نسخة احتياطية</h3>
-    <p>يصدّر كل البيانات — الطلاب والعلامات والإعدادات — كملف واحد يمكن إرساله عبر واتساب</p>
-    <button class="btn btn-primary" style="background:#f59e0b" onclick="exportBackup()">💾 تصدير</button>
-  </div>
-  <div class="exp-card" style="border-color:#86efac">
-    <h3>📥 استيراد نسخة احتياطية</h3>
-    <p>استعادة البيانات من ملف JSON — سيستبدل البيانات الحالية بالكامل</p>
-    <button class="btn btn-primary" style="background:#10b981" onclick="$('importFile2').click()">📥 استيراد</button>
-    <input type="file" id="importFile2" accept=".json" style="display:none" onchange="importBackup(this)">
-  </div>
-</div>
-
 <!-- MARKS PAGE -->
 <div class="page" id="page-marks">
-
-  <!-- Subject + Term selector -->
   <div class="marks-top">
     <div class="marks-sel-row">
       <select id="mSubject" onchange="renderMarks()">
-        <option value="english">اللغة الأجنبية</option>
-        <option value="math">الرياضيات</option>
         <option value="arabic">اللغة العربية</option>
+        <option value="math">الرياضيات</option>
+        <option value="english">اللغة الأجنبية</option>
         <option value="science">العلوم</option>
         <option value="social">التربية الاجتماعية</option>
         <option value="islamic">التربية الإسلامية</option>
@@ -262,14 +239,25 @@ textarea{min-height:60px;resize:vertical}
     </div>
     <div class="marks-period-row" id="mPeriodRow"></div>
   </div>
-
-  <!-- Marks table -->
   <div id="marksTableWrap"></div>
-
-  <!-- Marks export -->
   <div style="padding:10px 0;display:flex;gap:8px">
     <button class="btn btn-primary" style="flex:1;margin:0" onclick="printMarks()">🖨️ طباعة</button>
     <button class="btn btn-primary" style="flex:1;margin:0;background:#0f766e" onclick="exportMarksXLSX()">⬇️ Excel</button>
+  </div>
+</div>
+
+<!-- BACKUP PAGE -->
+<div class="page" id="page-backup">
+  <div class="exp-card" style="border-color:#fbbf24">
+    <h3>💾 تصدير نسخة احتياطية</h3>
+    <p>يصدّر كل البيانات — الطلاب والعلامات والإعدادات — كملف واحد يمكن إرساله عبر واتساب</p>
+    <button class="btn btn-primary" style="background:#f59e0b" onclick="exportBackup()">💾 تصدير</button>
+  </div>
+  <div class="exp-card" style="border-color:#86efac">
+    <h3>📥 استيراد نسخة احتياطية</h3>
+    <p>استعادة البيانات من ملف JSON — سيستبدل البيانات الحالية بالكامل</p>
+    <button class="btn btn-primary" style="background:#10b981" onclick="$('importFile2').click()">📥 استيراد</button>
+    <input type="file" id="importFile2" accept=".json" style="display:none" onchange="importBackup(this)">
   </div>
 </div>
 
@@ -355,11 +343,6 @@ textarea{min-height:60px;resize:vertical}
   <button class="btn btn-close"   onclick="closeSettings()">إلغاء</button>
 </div>
 
-<!-- PRINT AREA (hidden, used only for print) -->
-<div id="printArea"></div>
-
-<!-- TOAST -->
-
 <!-- RESET MODAL -->
 <div class="overlay" id="ovReset" onclick="closeReset()"></div>
 <div class="modal" id="modalReset">
@@ -373,6 +356,11 @@ textarea{min-height:60px;resize:vertical}
   <button class="btn btn-danger" onclick="confirmReset()">🔄 إعادة الضبط</button>
   <button class="btn btn-close"  onclick="closeReset()">إلغاء</button>
 </div>
+
+<!-- PRINT AREA (hidden, used only for print) -->
+<div id="printArea"></div>
+
+<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
@@ -705,14 +693,14 @@ function doPrint(){
   const tbl=(arr,title,cols)=>{
     if(!arr.length) return '';
     const rows=arr.map((s,i)=>`<tr>
-      <td>${i+1}</td>
-      <td>${s.name}</td>
-      <td>${s.father}</td>
-      <td>${s.mother||''}</td>
-      <td>${s.birth||''}</td>
+       <td>${i+1}</td>
+       <td>${s.name}</td>
+       <td>${s.father}</td>
+       <td>${s.mother||''}</td>
+       <td>${s.birth||''}</td>
       ${cols==='transfer'?`<td>${s.transferTo||''}</td>`:''}
-      <td>${s.notes||''}</td>
-    </tr>`).join('');
+       <td>${s.notes||''}</td>
+     </tr>`).join('');
     const extraHead=cols==='transfer'?'<th>المنقول إليه</th>':'';
     return `<h3 style="margin:16px 0 6px;color:#0f766e">${title} (${arr.length})</h3>
     <table>
@@ -751,14 +739,7 @@ function doPrint(){
 ${tbl(active,'✅ الطلاب المنتظمون','')}
 ${tbl(transfer,'🔄 المنتقلون','transfer')}
 ${tbl(dropout,'⚠️ المتسربون','')}
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js');
-  });
-}
-<\/script>
-<\/body><\/html>`;
+</body></html>`;
 
   const w=window.open('','_blank','width=800,height=700');
   w.document.open();
@@ -820,13 +801,31 @@ function showToast(msg){
 
 // ─── TABS ────────────────────────────────────────────────────────────────
 function switchTab(id){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','marks','stats','export','backup'][i]===id));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  $('page-'+id).classList.add('active');
-  if(id==='stats') renderStats();
-  if(id==='marks'){ activePeriod=TERM_PERIODS[$('mTerm').value][0].id; renderMarks(); }
+  // Update tabs active style
+  const tabs = document.querySelectorAll('.tab');
+  const pages = document.querySelectorAll('.page');
+  
+  // Remove active class from all tabs and pages
+  tabs.forEach(tab => tab.classList.remove('active'));
+  pages.forEach(page => page.classList.remove('active'));
+  
+  // Add active class to selected tab
+  let tabIndex = 0;
+  if(id === 'list') tabIndex = 0;
+  else if(id === 'stats') tabIndex = 1;
+  else if(id === 'marks') tabIndex = 2;
+  else if(id === 'backup') tabIndex = 3;
+  
+  if(tabs[tabIndex]) tabs[tabIndex].classList.add('active');
+  
+  // Show selected page
+  const targetPage = $('page-' + id);
+  if(targetPage) targetPage.classList.add('active');
+  
+  // Render specific page data if needed
+  if(id === 'stats') renderStats();
+  if(id === 'marks') renderMarks();
 }
-
 
 // ─── MARKS ───────────────────────────────────────────────────────────────────
 
@@ -842,7 +841,7 @@ const SUBJECTS = [
   {id:'art',     name:'الرسم'},
 ];
 
-// Periods per term (after removing one month from each)
+// Periods per term
 const TERM_PERIODS = {
   '1': [{id:'k1', name:'كانون ١'}, {id:'k2', name:'كانون ٢'}],
   '2': [{id:'sh', name:'شباط'},   {id:'ny', name:'نيسان+أيار'}],
@@ -873,7 +872,9 @@ function saveMarks(subject, term, data){
 function renderPeriodRow(){
   const term = $('mTerm').value;
   const periods = TERM_PERIODS[term];
+  if(!periods) return;
   const row = $('mPeriodRow');
+  if(!row) return;
   row.innerHTML = periods.map(p =>
     `<button class="period-btn${activePeriod===p.id?' active':''}" onclick="setPeriod('${p.id}')">${p.name}</button>`
   ).join('');
@@ -889,6 +890,7 @@ function renderMarks(){
   const subject = $('mSubject').value;
   const term    = $('mTerm').value;
   const periods = TERM_PERIODS[term];
+  if(!periods) return;
 
   // Make sure activePeriod is valid for current term
   if(!periods.find(p=>p.id===activePeriod)) activePeriod = periods[0].id;
@@ -899,6 +901,7 @@ function renderMarks(){
   const period   = periods.find(p=>p.id===activePeriod);
 
   const wrap = $('marksTableWrap');
+  if(!wrap) return;
   if(!students.length){ wrap.innerHTML='<div class="empty"><div>👥</div><p>لا يوجد طلاب منتظمون</p></div>'; return; }
 
   // Build table
@@ -908,8 +911,8 @@ function renderMarks(){
       <th class="th-name" rowspan="2">#  اسم التلميذ</th>
       <th class="th-group" colspan="4">${period.name}</th>
       <th rowspan="2" style="background:var(--teal-d)">المجموع<br><small>100</small></th>
-    </tr>
-    <tr>`;
+     </tr>
+     <tr>`;
   PERIOD_FIELDS.forEach(f=>{
     html += `<th>${f.label}<br><small>${f.max}</small></th>`;
   });
@@ -964,7 +967,8 @@ function onMarkInput(el, sid, period, field, max, subject, term){
     const inputs = row.querySelectorAll('input');
     let tot = 0;
     inputs.forEach(inp=>{ tot += parseFloat(inp.value||0)||0; });
-    row.querySelector('.total').textContent = tot || '';
+    const totalCell = row.querySelector('.total');
+    if(totalCell) totalCell.textContent = tot || '';
   }
 }
 
@@ -987,6 +991,11 @@ function printMarks(){
   const periods  = TERM_PERIODS[term];
   const data     = loadMarks(subject, term);
   const students = cls().students.filter(s=>s.status==='active');
+
+  if(!students.length){
+    showToast('لا يوجد طلاب منتظمون للطباعة');
+    return;
+  }
 
   let rows = '';
   students.forEach((s,i)=>{
@@ -1039,7 +1048,7 @@ function printMarks(){
   </thead>
   <tbody>${rows}</tbody>
 </table>
-<\/body><\/html>`;
+</body></html>`;
 
   const w = window.open('','_blank','width=900,height=650');
   w.document.open(); w.document.write(html); w.document.close();
@@ -1055,13 +1064,16 @@ function exportMarksXLSX(){
   const data     = loadMarks(subject, term);
   const students = cls().students.filter(s=>s.status==='active');
 
+  if(!students.length){
+    showToast('لا يوجد طلاب منتظمون للتصدير');
+    return;
+  }
+
   const header1 = ['#','اسم التلميذ'];
   const header2 = ['',''];
   periods.forEach(p=>{
-    PERIOD_FIELDS.forEach(f=>{ header1.push(p.name); header2.push(f.label+'
-'+f.max); });
-    header1.push(p.name); header2.push('مجموع
-100');
+    PERIOD_FIELDS.forEach(f=>{ header1.push(p.name); header2.push(f.label+'\n'+f.max); });
+    header1.push(p.name); header2.push('مجموع\n100');
   });
   header1.push('المجموع','المحصلة');
   header2.push('200','100');
@@ -1088,7 +1100,6 @@ function exportMarksXLSX(){
   XLSX.writeFile(wb, `علامات_${subName}_${termName}.xlsx`);
   showToast('⬇️ جارٍ التحميل');
 }
-
 
 // ─── BACKUP & RESTORE ────────────────────────────────────────────────────────
 function exportBackup(){
@@ -1145,7 +1156,6 @@ function importBackup(input){
   input.value = ''; // reset input
 }
 
-
 // ─── RESET ────────────────────────────────────────────────────────────────
 function resetApp(){
   closeSettings();
@@ -1168,19 +1178,21 @@ function confirmReset(){
   showToast('✅ تمت إعادة الضبط...');
   setTimeout(()=>{ location.href = location.href.split('?')[0]+'?v='+Date.now(); }, 1200);
 }
+
 // ─── INIT ────────────────────────────────────────────────────────────────
 load();
 updateHeader();
 renderChips();
 renderList();
+switchTab('list'); // Ensure initial tab is active
 
 // Close modals on back-swipe / escape
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeSettings(); } });
-</script>
-<script>
+
+// Service Worker registration
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Error:', err));
   });
 }
 </script>
